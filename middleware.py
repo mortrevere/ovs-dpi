@@ -42,7 +42,7 @@ class DPIDataEngine():
         return o
 
     def baseDomain(self, domain):
-        return domain
+        #return domain
         subs = domain.split('.')
         return '.'.join(subs[-2:])
 
@@ -66,6 +66,7 @@ class DPIDataEngine():
                     #print(value)
                         labels += [value['dest']['host'][0]]
                         data += [value['vol']]
+
         elif protocol == 'dns':
             for ip, domain in self.qdns_data.items():
                 labels += [domain]
