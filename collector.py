@@ -1,5 +1,40 @@
 #! /usr/bin/python3
 
+from contextlib import contextmanager
+import signal
+
+def raise_error(signum, frame):
+    """This handler will raise an error inside gethostbyname"""
+    raise OSError
+
+@contextmanager
+def set_signal(signum, handler):
+    """Temporarily set signal"""
+    old_handler = signal.getsignal(signum)
+    signal.signal(signum, handler)
+    try:
+        yield
+    finally:
+        signal.signal(signum, old_handler)
+
+@contextmanager
+def set_alarm(time):
+    """Temporarily set alarm"""
+    signal.setitimer(signal.ITIMER_REAL, time)
+    try:
+        yield
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0) # Disable alarm
+
+@contextmanager
+def raise_on_timeout(time):
+    """This context manager will raise an OSError unless
+    The with scope is exited in time."""
+    with set_signal(signal.SIGALRM, raise_error):
+        with set_alarm(time):
+            yield
+
+
 import redis
 r = redis.Redis(host='10.206.19.154', port=6379, db=0)
 print(r.set('foo', 'bar'))
@@ -64,6 +99,7 @@ class FirewallSwitch(app_manager.RyuApp):
         self.internetPort = 2
         self.DPI_data = {}
         self.watched_ports = [80, 443, 53]
+        self.currentDNSLookup = {}
 
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
     def switch_features_handler(self, ev):
@@ -190,12 +226,22 @@ class FirewallSwitch(app_manager.RyuApp):
                 r.hset('dpi', dpiid, self.DPI_data[dpiid])
 
                 try:
+                    with raise_on_timeout(0.3): # Timeout in 300 milliseconds
+                        lookup = socket.gethostbyaddr(_ip.dst)
+                    print(lookup)
+                    r.hset('dns', _ip.dst, lookup[0])
+                except OSError:
+                    print("Could not gethostbyname in time")
+
+                '''
+                try:
                     lookup = socket.gethostbyaddr(_ip.dst)
                     print(lookup)
                     r.hset('dns', _ip.dst, lookup[0])
                 except:
                     pass
                 #print(protocols, ip.src, ip.dst, self.DPI_data)
+                '''
         else:
             print(protocols, eth.dst)
 
@@ -284,3 +330,5 @@ class FirewallSwitch(app_manager.RyuApp):
                 del self.flux[flux_id]
             else:
                 print('WARNING : Orphaned OFPFlowRemoved : ', flux_id)
+
+
