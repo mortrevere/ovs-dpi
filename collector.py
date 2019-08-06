@@ -227,10 +227,13 @@ class FirewallSwitch(app_manager.RyuApp):
 
                 try:
                     with raise_on_timeout(0.3): # Timeout in 300 milliseconds
-                        lookup = socket.gethostbyaddr(_ip.dst)
-                    print(lookup)
-                    r.hset('dns', _ip.dst, lookup[0])
-                except OSError:
+                        if _ip.dst not in self.currentDNSLookup.keys():
+                            self.currentDNSLookup[_ip.dst] = True
+                            lookup = socket.gethostbyaddr(_ip.dst)
+                            print(lookup)
+                            r.hset('dns', _ip.dst, lookup[0])
+                            del self.currentDNSLookup[_ip.dst]
+                except:
                     print("Could not gethostbyname in time")
 
                 '''
