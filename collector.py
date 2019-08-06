@@ -172,9 +172,12 @@ class FirewallSwitch(app_manager.RyuApp):
                 pktdata = pkt.protocols[-1]
                 dns_query = self.parseDNSresponse(pktdata)
                 print(_ip.src + ' made a DNS request for ' + dns_query)
-                lookup = socket.gethostbyname(dns_query)
-                print(lookup)
-                r.hset('qdns', lookup, dns_query)
+                try:
+                    lookup = socket.gethostbyname(dns_query)
+                    print(lookup)
+                    r.hset('qdns', lookup, dns_query)
+                except:
+                    print("COULD NOT RESOLVE " + dns_query)
        	if 'tcp' in protocols: #packet has tcp
             _tcp = pkt.get_protocol(tcp.tcp)
             ports = [_tcp.src_port, _tcp.dst_port]
